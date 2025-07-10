@@ -1,1 +1,194 @@
 
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Sahura Monthly Wordle - Aug 2025</title>
+  <style>
+    /* Global styles */
+    body { display: flex; flex-direction: column; align-items: center; font-family: Arial, sans-serif; margin: 0; padding: 20px; background: #121213; color: #ffffff; }
+    #guess-grid { display: grid; grid-template-rows: repeat(auto-fill, 1fr); gap: 5px; margin-bottom: 20px; }
+    .row { display: grid; grid-template-columns: repeat(5, 1fr); gap: 5px; }
+    .tile { width: 60px; height: 60px; border: 2px solid #3a3a3c; display: flex; align-items: center; justify-content: center; font-size: 2rem; text-transform: uppercase; font-weight: bold; }
+    .tile.filled { border-color: #565758; }
+    .tile.green { background-color: #538d4e; border-color: #538d4e; }
+    .tile.yellow { background-color: #b59f3b; border-color: #b59f3b; }
+    .tile.grey  { background-color: #3a3a3c; border-color: #3a3a3c; }
+
+    /* Keyboard container */
+    #keyboard { display: flex; flex-direction: column; align-items: center; gap: 8px; margin-top: 16px; }
+    .key-row { display: flex; gap: 6px; justify-content: center; }
+
+    /* Key styles */
+    .key {
+      width: 58px;
+      height: 58px;
+      background-color: #818384;
+      border: none;
+      border-radius: 4px;
+      font-size: 1rem;
+      font-weight: bold;
+      color: #ffffff;
+      text-align: center;
+      line-height: 58px;
+      cursor: pointer;
+      user-select: none;
+      box-sizing: border-box;
+      text-transform: uppercase;
+    }
+    .key.enter, .key.backspace { width: 88px; }
+
+    /* Key color states */
+    .key.green  { background-color: #538d4e !important; }
+    .key.yellow { background-color: #b59f3b !important; }
+    .key.grey   { background-color: #3a3a3c !important; }
+
+    /* Hover/Focus */
+    .key:hover, .key:focus { background-color: #a0a2a4; outline: none; }
+  </style>
+</head>
+<body>
+  <h1>Sahura Monthly Wordle - Aug 2025</h1>
+  <div id="guess-grid"></div>
+  <div id="keyboard"></div>
+  <script>
+    // ======== Configuration ========
+    // Set your solution word here (must be in wordlist.txt). Leave empty ('') to pick randomly.
+    const SOLUTION = 'IONIC';  // <-- your chosen word, lowercase
+
+    let WORDS = [];
+    let target;
+
+    // Load full word list
+    fetch('wordlist.txt')
+      .then(r => r.text())
+      .then(txt => {
+        WORDS = txt
+          .split(/\r?\n/)
+          .map(w => w.trim().toLowerCase())
+          .filter(w => w.length === 5);
+        initGame();
+      })
+      .catch(err => console.error('Could not load wordlist.txt:', err));
+
+    function initGame() {
+      // Normalize and choose target
+      const sol = SOLUTION.trim().toLowerCase();
+      if (sol && WORDS.includes(sol)) {
+        target = sol;
+      } else {
+        target = WORDS[Math.floor(Math.random() * WORDS.length)];
+      }
+
+      // Hard Mode state
+      const greens = {};                       // pos → letter
+      const yellowForbidden = {};              // letter → Set of forbidden positions
+      const requiredCounts = {};               // letter → min required
+      const maxCounts = {};                    // letter → max allowed
+      const banned = new Set();                // letters not in solution
+
+      let currentRow = 0, currentCol = 0;
+      const grid = document.getElementById('guess-grid');
+      const keyboardEl = document.getElementById('keyboard');
+
+      // Create initial rows
+      for (let i = 0; i < 6; i++) addRow();
+      document.addEventListener('keydown', handleKey);
+
+      // Build keyboard
+      const keyRows = [
+        ['Q','W','E','R','T','Y','U','I','O','P'],
+        ['A','S','D','F','G','H','J','K','L'],
+        ['ENTER','Z','X','C','V','B','N','M','BACKSPACE']
+      ];
+      keyRows.forEach(row => {
+        const rowEl = document.createElement('div'); rowEl.className = 'key-row';
+        row.forEach(key => {
+          const btn = document.createElement('button');
+          const display = key === 'BACKSPACE' ? '⌫' : key;
+          btn.textContent = display;
+          btn.classList.add('key');
+          if (key === 'ENTER') btn.classList.add('enter');
+          if (key === 'BACKSPACE') btn.classList.add('backspace');
+          btn.addEventListener('click', () => handleKey({ key: key === 'BACKSPACE' ? 'Backspace' : key === 'ENTER' ? 'Enter' : key }));
+          rowEl.appendChild(btn);
+        });
+        keyboardEl.appendChild(rowEl);
+      });
+
+      function addRow() {
+        const row = document.createElement('div'); row.className='row';
+        for (let i = 0; i < 5; i++) {
+          const tile = document.createElement('div'); tile.className='tile';
+          row.appendChild(tile);
+        }
+        grid.appendChild(row);
+      }
+
+      function handleKey(e) {
+        const key = e.key.length === 1 ? e.key.toUpperCase() : e.key;
+        if (/^[A-Z]$/.test(key) && currentCol < 5) {
+          const tile = grid.children[currentRow].children[currentCol];
+          tile.textContent = key;
+          tile.classList.add('filled');
+          currentCol++;
+        } else if (key === 'Backspace' && currentCol > 0) {
+          currentCol--;
+          const tile = grid.children[currentRow].children[currentCol];
+          tile.textContent = '';
+          tile.classList.remove('filled');
+        } else if (key === 'Enter' && currentCol === 5) {
+          submitGuess();
+        }
+      }
+
+      function evaluate(guess) {
+        const fb = Array(5).fill('-');
+        const solChars = target.split('');
+        for (let i=0;i<5;i++) if (guess[i]===solChars[i]){ fb[i]='G'; solChars[i]=null; }
+        for (let i=0;i<5;i++) if (fb[i]==='-' && solChars.includes(guess[i])){ fb[i]='Y'; solChars[solChars.indexOf(guess[i])] = null; }
+        return fb;
+      }
+
+      function updateState(guess, fb) {
+        const cnt = {};
+        fb.forEach((m,i)=>{ if (m==='G'||m==='Y') cnt[guess[i]] = (cnt[guess[i]]||0)+1; });
+        fb.forEach((m,i)=>{ if (m==='G') greens[i]=guess[i]; });
+        for (let ch in cnt) requiredCounts[ch] = Math.max(requiredCounts[ch]||0, cnt[ch]);
+        fb.forEach((m,i)=>{ if (m==='Y') { yellowForbidden[guess[i]] = yellowForbidden[guess[i]]||new Set(); yellowForbidden[guess[i]].add(i);} });
+        fb.forEach((m,i)=>{ const ch=guess[i]; if(m==='-'){ if(requiredCounts[ch]) maxCounts[ch] = requiredCounts[ch]; else banned.add(ch);} });
+      }
+
+      function checkHard(guess) {
+        for (let pos in greens) if (guess[pos]!==greens[pos]) return `Position ${+pos+1} must be ${greens[pos]}`;
+        for (let ch in requiredCounts) if ((guess.match(new RegExp(ch, 'g'))||[]).length < requiredCounts[ch]) return `Include ${ch} ${requiredCounts[ch]} times`;
+        for (let ch in maxCounts) if ((guess.match(new RegExp(ch, 'g'))||[]).length > maxCounts[ch]) return `Use ${ch} at most ${maxCounts[ch]} times`;
+        for (let ch of banned) if (guess.includes(ch)) return `Cannot use ${ch}`;
+        for (let ch in yellowForbidden) for (let pos of yellowForbidden[ch]) if (guess[pos]===ch) return `${ch} cannot be at position ${pos+1}`;
+        return null;
+      }
+
+      function submitGuess() {
+        const rowEl = grid.children[currentRow];
+        const guess = Array.from(rowEl.children).map(t=>t.textContent.toLowerCase()).join('');
+        if (!WORDS.includes(guess)) { alert('Not in word list'); return; }
+        const violation = checkHard(guess);
+        if (violation) { alert(`Hard mode: ${violation}`); return; }
+        const fb = evaluate(guess);
+        fb.forEach((m,i)=>{
+          const tile = rowEl.children[i];
+          tile.classList.add(m==='G'?'green':m==='Y'?'yellow':'grey');
+          const keyBtn = [...keyboardEl.querySelectorAll('.key')].find(b=>b.textContent===guess[i].toUpperCase());
+          if (keyBtn && !keyBtn.classList.contains('green')) keyBtn.classList.add(m==='G'?'green':m==='Y'?'yellow':'grey');
+        });
+        updateState(guess, fb);
+        if (fb.every(m=>m==='G')) { alert('🎉 You win!'); return; }
+        currentRow++; currentCol=0;
+        if (currentRow >= grid.children.length) addRow();
+      }
+    }
+  </script>
+</body>
+</html>
+
