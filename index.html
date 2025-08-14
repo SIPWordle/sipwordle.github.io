@@ -53,12 +53,6 @@
       box-sizing: border-box;
     }
 
-    .key {
-      flex: 1 1 0;
-      min-width: 0;
-      max-width: 60px;
-    }
-
     /* Key styles */
     .key {
       width: 58px;
@@ -145,7 +139,7 @@
         const rowEl = document.createElement('div'); rowEl.className = 'key-row';
         row.forEach(key => {
           const btn = document.createElement('button');
-          const display = key === 'BACKSPACE' ? '⌫' : key;
+          const display = key === 'BACKSPACE' ? '⌫' : key === 'ENTER' ? '↵' : key;
           btn.textContent = display;
           btn.classList.add('key');
           if (key === 'ENTER') btn.classList.add('enter');
